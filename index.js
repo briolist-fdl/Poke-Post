@@ -76,7 +76,7 @@ client.on('messageCreate', async (message) => {
     await message.delete();
 
     const warning = await message.channel.send({
-      content: `<@${message.author.id}> Use \`/friendcode setup\`. Regular messages are removed.`
+      content: `<@${message.author.id}> Use \`/friendcode setup\`. Regular messages are removed, but may remain visible on your screen until refresh.`
     });
 
     setTimeout(async () => {
@@ -86,7 +86,6 @@ client.on('messageCreate', async (message) => {
         console.error('Failed to delete warning message:', err);
       }
     }, 4000);
-
   } catch (error) {
     console.error('Failed to moderate friend code channel message:', error);
   }
