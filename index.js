@@ -59,6 +59,23 @@ client.once(Events.ClientReady, async readyClient => {
   }
 });
 
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  const protectedChannels = [
+    '459637573904760843',  // Tundra
+    '1494308341977976946'  // International
+  ];
+
+  if (!protectedChannels.includes(message.channel.id)) return;
+
+  try {
+    await message.delete();
+  } catch (error) {
+    console.error('Failed to delete message in friend code channel:', error);
+  }
+});
+
 client.on(Events.InteractionCreate, async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
