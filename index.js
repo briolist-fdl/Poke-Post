@@ -130,6 +130,8 @@ async function handleFriendcodeCommand(interaction) {
     const trainerCodeInput = interaction.options.getString("trainer_code", true).trim();
     const vivillonPattern = interaction.options.getString("vivillon_pattern", true);
     const campfireUsername = interaction.options.getString("campfire_username")?.trim() || null;
+    const publishToFollowers =
+  interaction.options.getBoolean("publish_to_followers") ?? true;
 
     if (!VIVILLON_PATTERNS.has(vivillonPattern)) {
       return interaction.reply({
@@ -150,15 +152,16 @@ async function handleFriendcodeCommand(interaction) {
     const publicChannelId = getPublicChannelId(vivillonPattern);
 
     await upsertProfile({
-      discordUserId: interaction.user.id,
-      discordTag: interaction.user.tag,
-      pokemonUsername,
-      trainerCodeRaw: normalizedCode,
-      trainerCodeFormatted: formattedCode,
-      campfireUsername,
-      vivillonPattern,
-      publicChannelId
-    });
+  discordUserId: interaction.user.id,
+  discordTag: interaction.user.tag,
+  pokemonUsername,
+  trainerCodeRaw: normalizedCode,
+  trainerCodeFormatted: formattedCode,
+  campfireUsername,
+  vivillonPattern,
+  publicChannelId,
+  publishToFollowers
+});
 
     const profile = await getProfile(interaction.user.id);
     await publishOrUpdateProfile(profile, interaction.guild);
@@ -279,11 +282,17 @@ function buildPublicMessage(profile) {
     header += ` | ${EMOJIS.campfire} ${profile.campfire_username}`;
   }
 
-  const lines = [
-    header,
-    "",
-    profile.trainer_code_formatted
-  ];
+  let codeLine = profile.trainer_code_formatted;
+
+if (profile.publish_to_followers === false) {
+  codeLine += " | 🔇 republishing off";
+}
+
+const lines = [
+  header,
+  "",
+  codeLine
+];
 
   return lines.join("\n");
 }
