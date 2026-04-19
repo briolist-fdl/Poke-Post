@@ -14,7 +14,10 @@ const {
 const { Pool } = require("pg");
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages
+  ],
   partials: [Partials.Channel]
 });
 
