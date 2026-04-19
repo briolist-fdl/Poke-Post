@@ -60,19 +60,23 @@ client.once(Events.ClientReady, async readyClient => {
 });
 
 client.on('messageCreate', async (message) => {
+  console.log('Message received in channel:', message.channel.id);
+
   if (message.author.bot) return;
 
   const protectedChannels = [
-    '459637573904760843',  // Tundra
-    '1494308341977976946'  // International
+    '459637573904760843',
+    '1494308341977976946'
   ];
 
   if (!protectedChannels.includes(message.channel.id)) return;
 
+  console.log('Deleting message in protected channel');
+
   try {
     await message.delete();
   } catch (error) {
-    console.error('Failed to delete message in friend code channel:', error);
+    console.error('Failed to delete message:', error);
   }
 });
 
