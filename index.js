@@ -63,8 +63,6 @@ client.once(Events.ClientReady, async readyClient => {
 });
 
 client.on('messageCreate', async (message) => {
-  console.log('Message received in channel:', message.channel.id);
-
   if (message.author.bot) return;
 
   const protectedChannels = [
@@ -74,12 +72,23 @@ client.on('messageCreate', async (message) => {
 
   if (!protectedChannels.includes(message.channel.id)) return;
 
-  console.log('Deleting message in protected channel');
-
   try {
     await message.delete();
+
+    const warning = await message.channel.send({
+      content: `<@${message.author.id}> Use \`/friendcode setup\`. Regular messages are removed.`
+    });
+
+    setTimeout(async () => {
+      try {
+        await warning.delete();
+      } catch (err) {
+        console.error('Failed to delete warning message:', err);
+      }
+    }, 4000);
+
   } catch (error) {
-    console.error('Failed to delete message:', error);
+    console.error('Failed to moderate friend code channel message:', error);
   }
 });
 
