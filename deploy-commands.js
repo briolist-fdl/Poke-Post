@@ -24,7 +24,7 @@ const vivillonChoices = [
 ];
 
 const setupCommand = new SlashCommandBuilder()
-  .setName("friendcode")
+  .setName("post")
   .setDescription("Register, update, or manage your Pokemon GO friend code profile.")
   .addSubcommand(sub =>
     sub
@@ -85,6 +85,30 @@ const setupCommand = new SlashCommandBuilder()
       .setName("edit")
       .setDescription("Edit your existing friend code profile.")
   )
+  .addSubcommand(sub =>
+  sub
+    .setName("add-code")
+    .setDescription("Add an additional friend code to your profile.")
+    .addStringOption(opt =>
+      opt
+        .setName("trainer_code")
+        .setDescription("A 12-digit Pokemon GO friend code.")
+        .setRequired(true)
+    )
+)
+.addSubcommand(sub =>
+  sub
+    .setName("remove-code")
+    .setDescription("Remove an additional friend code from your profile.")
+    .addIntegerOption(opt =>
+      opt
+        .setName("code_number")
+        .setDescription("Which additional code to remove (1-3).")
+        .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(3)
+    )
+)
   .addSubcommand(sub =>
     sub
       .setName("republishing")

@@ -76,7 +76,7 @@ client.on('messageCreate', async (message) => {
     await message.delete();
 
     const warning = await message.channel.send({
-      content: `<@${message.author.id}> Use \`/friendcode setup\`. Regular messages are removed, but may remain visible on your screen until refresh.`
+      content: `<@${message.author.id}> Please use \`/post setup\` to share your friend code. Regular messages are removed, but may remain visible on your screen until refreshed.`
     });
 
     setTimeout(async () => {
@@ -85,7 +85,7 @@ client.on('messageCreate', async (message) => {
       } catch (err) {
         console.error('Failed to delete warning message:', err);
       }
-    }, 4000);
+    }, 11000);
   } catch (error) {
     console.error('Failed to moderate friend code channel message:', error);
   }
@@ -94,11 +94,18 @@ client.on('messageCreate', async (message) => {
 client.on(Events.InteractionCreate, async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
-      if (interaction.commandName === "friendcode") {
+      if (interaction.commandName === "post") {
         await handleFriendcodeCommand(interaction);
       }
       return;
     }
+
+    if (interaction.isModalSubmit()) {
+  if (interaction.customId === "edit_profile_modal") {
+    await handleEditProfileModal(interaction);
+  }
+  return;
+}
 
     if (interaction.isButton()) {
       if (interaction.customId.startsWith("copy_friend_code:")) {
@@ -157,6 +164,7 @@ async function handleFriendcodeCommand(interaction) {
   pokemonUsername,
   trainerCodeRaw: normalizedCode,
   trainerCodeFormatted: formattedCode,
+  additionalCodes: [],
   campfireUsername,
   vivillonPattern,
   publicChannelId,
@@ -173,30 +181,52 @@ async function handleFriendcodeCommand(interaction) {
     return;
   }
 
-  if (subcommand === "edit") {
-  const profile = await getProfile(interaction.user.id);
-
-   if (!profile) {
-     return interaction.reply({
-       content: "You do not have a saved profile yet. Use `/friendcode setup` first.",
-       flags: MessageFlags.Ephemeral
-     });
-    }
-
-   const modal = buildEditModal(profile);
-   await interaction.showModal(modal);
-   return;
-  }
-
-  if (subcommand === "republishing") {
-  const profile = await getProfile(interaction.user.id);
-
-  if (subcommand === "region") {
+ if (subcommand === "edit") {
   const profile = await getProfile(interaction.user.id);
 
   if (!profile) {
     return interaction.reply({
-      content: "You do not have a saved profile yet. Use `/friendcode setup` first.",
+      content: "You do not have a saved profile yet. Use `/post setup` first.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const modal = buildEditModal(profile);
+  await interaction.showModal(modal);
+  return;
+}
+
+if (subcommand === "republishing") {
+  const profile = await getProfile(interaction.user.id);
+
+  if (!profile) {
+    return interaction.reply({
+      content: "You do not have a saved profile yet. Use `/post setup` first.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const enabled = interaction.options.getBoolean("enabled", true);
+
+  await updateRepublishingPreference(interaction.user.id, enabled);
+
+  const updatedProfile = await getProfile(interaction.user.id);
+  await publishOrUpdateProfile(updatedProfile, interaction.guild);
+
+  return interaction.reply({
+    content: enabled
+      ? "Republishing is now turned on."
+      : "Republishing is now turned off.",
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+if (subcommand === "region") {
+  const profile = await getProfile(interaction.user.id);
+
+  if (!profile) {
+    return interaction.reply({
+      content: "You do not have a saved profile yet. Use `/post setup` first.",
       flags: MessageFlags.Ephemeral
     });
   }
@@ -230,28 +260,6 @@ async function handleFriendcodeCommand(interaction) {
       oldChannelId === newChannelId
         ? `Your region has been updated to **${prettifyPattern(vivillonPattern)}**.`
         : `Your region has been updated to **${prettifyPattern(vivillonPattern)}** and your post was moved to <#${newChannelId}>.`,
-    flags: MessageFlags.Ephemeral
-  });
-}
-
-  if (!profile) {
-    return interaction.reply({
-      content: "You do not have a saved profile yet. Use `/friendcode setup` first.",
-      flags: MessageFlags.Ephemeral
-    });
-  }
-
-  const enabled = interaction.options.getBoolean("enabled", true);
-
-  await updateRepublishingPreference(interaction.user.id, enabled);
-
-  const updatedProfile = await getProfile(interaction.user.id);
-  await publishOrUpdateProfile(updatedProfile, interaction.guild);
-
-  return interaction.reply({
-    content: enabled
-      ? "Republishing is now turned on."
-      : "Republishing is now turned off.",
     flags: MessageFlags.Ephemeral
   });
 }
@@ -296,7 +304,7 @@ async function handleFriendcodeCommand(interaction) {
 
     if (!profile) {
       return interaction.reply({
-        content: "You do not have a saved profile yet. Use `/friendcode setup` first.",
+        content: "You do not have a saved profile yet. Use `/post setup` first.",
         flags: MessageFlags.Ephemeral
       });
     }
@@ -308,10 +316,111 @@ async function handleFriendcodeCommand(interaction) {
       flags: MessageFlags.Ephemeral
     });
   }
+
+  if (subcommand === "add-code") {
+  const profile = await getProfile(interaction.user.id);
+
+  if (!profile) {
+    return interaction.reply({
+      content: "You do not have a saved profile yet. Use `/post setup` first.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const trainerCodeInput = interaction.options.getString("trainer_code", true).trim();
+  const normalizedCode = normalizeTrainerCode(trainerCodeInput);
+
+  if (!normalizedCode) {
+    return interaction.reply({
+      content: "Trainer code must contain exactly 12 digits.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  if (normalizedCode === profile.trainer_code_raw) {
+    return interaction.reply({
+      content: "That code is already your main friend code.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const existingAdditionalCodes = profile.additional_codes || [];
+
+  if (existingAdditionalCodes.includes(normalizedCode)) {
+    return interaction.reply({
+      content: "That additional code is already on your profile.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  if (existingAdditionalCodes.length >= 3) {
+    return interaction.reply({
+      content: "You already have the maximum of 3 additional codes.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const updatedAdditionalCodes = [...existingAdditionalCodes, normalizedCode];
+
+  await updateAdditionalCodes(interaction.user.id, updatedAdditionalCodes);
+
+  const updatedProfile = await getProfile(interaction.user.id);
+  await publishOrUpdateProfile(updatedProfile, interaction.guild);
+
+  return interaction.reply({
+    content: `Added extra code: ${formatTrainerCode(normalizedCode)}`,
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+if (subcommand === "remove-code") {
+  const profile = await getProfile(interaction.user.id);
+
+  if (!profile) {
+    return interaction.reply({
+      content: "You do not have a saved profile yet. Use `/post setup` first.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const additionalCodes = profile.additional_codes || [];
+
+  if (additionalCodes.length === 0) {
+    return interaction.reply({
+      content: "You do not have any additional codes to remove.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const codeNumber = interaction.options.getInteger("code_number", true);
+  const indexToRemove = codeNumber - 1;
+
+  if (!additionalCodes[indexToRemove]) {
+    return interaction.reply({
+      content: `You do not have an additional code in slot ${codeNumber}.`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const removedCode = additionalCodes[indexToRemove];
+  const updatedAdditionalCodes = additionalCodes.filter((_, index) => index !== indexToRemove);
+
+  await updateAdditionalCodes(interaction.user.id, updatedAdditionalCodes);
+
+  const updatedProfile = await getProfile(interaction.user.id);
+  await publishOrUpdateProfile(updatedProfile, interaction.guild);
+
+  return interaction.reply({
+    content: `Removed extra code: ${formatTrainerCode(removedCode)}`,
+    flags: MessageFlags.Ephemeral
+  });
+}
 }
 
 async function handleCopyButton(interaction) {
-  const userId = interaction.customId.split(":")[1];
+  const [, userId, codeIndexRaw] = interaction.customId.split(":");
+  const codeIndex = Number(codeIndexRaw);
+
   const profile = await getProfile(userId);
 
   if (!profile) {
@@ -321,8 +430,22 @@ async function handleCopyButton(interaction) {
     });
   }
 
+  const allCodes = [
+    profile.trainer_code_formatted,
+    ...((profile.additional_codes || []).map(formatTrainerCode))
+  ];
+
+  const selectedCode = allCodes[codeIndex];
+
+  if (!selectedCode) {
+    return interaction.reply({
+      content: "That friend code is no longer available.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
   return interaction.reply({
-    content: profile.trainer_code_formatted,
+    content: selectedCode,
     flags: MessageFlags.Ephemeral
   });
 }
@@ -365,19 +488,22 @@ function buildPublicMessage(profile) {
     header += ` | ${EMOJIS.campfire} ${profile.campfire_username}`;
   }
 
-  let codeLine = profile.trainer_code_formatted;
+  const allCodes = [
+    profile.trainer_code_formatted,
+    ...((profile.additional_codes || []).map(formatTrainerCode))
+  ];
 
-if (profile.publish_to_followers === false) {
-  codeLine += " | 🔇 republishing off";
-}
+  let codeLine = allCodes.join(" | ");
 
-const lines = [
-  header,
-  "",
-  codeLine
-];
+  if (profile.publish_to_followers === false) {
+    codeLine += " | 🔇 republishing off";
+  }
 
-  return lines.join("\n");
+  return [
+    header,
+    "",
+    codeLine
+  ].join("\n");
 }
 
 function buildProfilePreview(profile) {
@@ -391,12 +517,20 @@ function buildProfilePreview(profile) {
 }
 
 function buildButtons(profile) {
+  const additionalCodes = profile.additional_codes || [];
+  const allCodes = [
+    profile.trainer_code_raw,
+    ...additionalCodes
+  ];
+
   return [
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`copy_friend_code:${profile.discord_user_id}`)
-        .setLabel("📋 Copy friend code")
-        .setStyle(ButtonStyle.Secondary)
+      ...allCodes.map((_, index) =>
+        new ButtonBuilder()
+          .setCustomId(`copy_friend_code:${profile.discord_user_id}:${index}`)
+          .setLabel(index === 0 ? "📋 Copy main code" : `📋 Copy code ${index + 1}`)
+          .setStyle(ButtonStyle.Secondary)
+      )
     )
   ];
 }
@@ -498,6 +632,18 @@ async function publishOrUpdateProfile(profile, guild) {
   await setPublicMessage(profile.discord_user_id, targetChannel.id, sentMessage.id);
 }
 
+async function updateAdditionalCodes(discordUserId, additionalCodes) {
+  await pool.query(
+    `
+    UPDATE friendcode_profiles
+    SET additional_codes = $2,
+        updated_at = NOW()
+    WHERE discord_user_id = $1
+    `,
+    [discordUserId, additionalCodes]
+  );
+}
+
 async function repostProfile(profile, guild) {
   const targetChannel = await guild.channels.fetch(profile.public_channel_id);
   if (!targetChannel || !targetChannel.isTextBased()) {
@@ -585,6 +731,62 @@ async function updateRepublishingPreference(discordUserId, enabled) {
     `,
     [discordUserId, enabled]
   );
+
+  async function handleEditProfileModal(interaction) {
+  const profile = await getProfile(interaction.user.id);
+
+  if (!profile) {
+    return interaction.reply({
+      content: "You do not have a saved profile yet. Use `/post setup` first.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const pokemonUsername = interaction.fields
+    .getTextInputValue("pokemon_username")
+    .trim();
+
+  const trainerCodeInput = interaction.fields
+    .getTextInputValue("trainer_code")
+    .trim();
+
+  const campfireRaw = interaction.fields
+    .getTextInputValue("campfire_username")
+    .trim();
+
+  const campfireUsername = campfireRaw || null;
+
+  const normalizedCode = normalizeTrainerCode(trainerCodeInput);
+  if (!normalizedCode) {
+    return interaction.reply({
+      content: "Trainer code must contain exactly 12 digits.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const formattedCode = formatTrainerCode(normalizedCode);
+
+  await upsertProfile({
+    discordUserId: interaction.user.id,
+    discordTag: interaction.user.tag,
+    pokemonUsername,
+    trainerCodeRaw: normalizedCode,
+    trainerCodeFormatted: formattedCode,
+    additionalCodes: profile.additional_codes || [],
+    campfireUsername,
+    vivillonPattern: profile.vivillon_pattern,
+    publicChannelId: profile.public_channel_id,
+    publishToFollowers: profile.publish_to_followers
+  });
+
+  const updatedProfile = await getProfile(interaction.user.id);
+  await publishOrUpdateProfile(updatedProfile, interaction.guild);
+
+  return interaction.reply({
+    content: "Your profile has been updated.",
+    flags: MessageFlags.Ephemeral
+  });
+}
 }
 
 async function ensureDatabaseConnection() {
@@ -599,6 +801,7 @@ async function ensureDatabaseConnection() {
         pokemon_username TEXT NOT NULL,
         trainer_code_raw TEXT NOT NULL,
         trainer_code_formatted TEXT NOT NULL,
+        additional_codes TEXT[],
         campfire_username TEXT,
         vivillon_pattern TEXT NOT NULL,
         public_channel_id TEXT NOT NULL,
@@ -615,6 +818,11 @@ async function ensureDatabaseConnection() {
       ADD COLUMN IF NOT EXISTS publish_to_followers BOOLEAN NOT NULL DEFAULT TRUE;
     `);
 
+    await client.query(`
+  ALTER TABLE friendcode_profiles
+  ADD COLUMN IF NOT EXISTS additional_codes TEXT[];
+`);
+
     console.log("Database connected + table ensured.");
   } finally {
     client.release();
@@ -629,6 +837,7 @@ async function upsertProfile(profile) {
       pokemon_username,
       trainer_code_raw,
       trainer_code_formatted,
+      additional_codes,
       campfire_username,
       vivillon_pattern,
       public_channel_id,
@@ -642,6 +851,7 @@ async function upsertProfile(profile) {
       pokemon_username = EXCLUDED.pokemon_username,
       trainer_code_raw = EXCLUDED.trainer_code_raw,
       trainer_code_formatted = EXCLUDED.trainer_code_formatted,
+      additional_codes = EXCLUDED.additional_codes,
       campfire_username = EXCLUDED.campfire_username,
       vivillon_pattern = EXCLUDED.vivillon_pattern,
       public_channel_id = EXCLUDED.public_channel_id,
@@ -655,6 +865,7 @@ async function upsertProfile(profile) {
     profile.pokemonUsername,
     profile.trainerCodeRaw,
     profile.trainerCodeFormatted,
+    profile.additionalCodes || [],
     profile.campfireUsername,
     profile.vivillonPattern,
     profile.publicChannelId,
