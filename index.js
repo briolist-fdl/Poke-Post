@@ -418,7 +418,6 @@ async function ensureDatabaseConnection() {
   try {
     await client.query("SELECT 1");
 
-    // 🔥 Auto-create table
     await client.query(`
       CREATE TABLE IF NOT EXISTS friendcode_profiles (
         discord_user_id TEXT PRIMARY KEY,
@@ -430,10 +429,16 @@ async function ensureDatabaseConnection() {
         vivillon_pattern TEXT NOT NULL,
         public_channel_id TEXT NOT NULL,
         public_message_id TEXT,
+        publish_to_followers BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         last_bumped_at TIMESTAMPTZ
       );
+    `);
+
+    await client.query(`
+      ALTER TABLE friendcode_profiles
+      ADD COLUMN IF NOT EXISTS publish_to_followers BOOLEAN NOT NULL DEFAULT TRUE;
     `);
 
     console.log("Database connected + table ensured.");
@@ -453,9 +458,10 @@ async function upsertProfile(profile) {
       campfire_username,
       vivillon_pattern,
       public_channel_id,
+      publish_to_followers,
       updated_at
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
     ON CONFLICT (discord_user_id)
     DO UPDATE SET
       discord_tag = EXCLUDED.discord_tag,
@@ -465,6 +471,7 @@ async function upsertProfile(profile) {
       campfire_username = EXCLUDED.campfire_username,
       vivillon_pattern = EXCLUDED.vivillon_pattern,
       public_channel_id = EXCLUDED.public_channel_id,
+      publish_to_followers = EXCLUDED.publish_to_followers,
       updated_at = NOW()
   `;
 
@@ -476,7 +483,8 @@ async function upsertProfile(profile) {
     profile.trainerCodeFormatted,
     profile.campfireUsername,
     profile.vivillonPattern,
-    profile.publicChannelId
+    profile.publicChannelId,
+    profile.publishToFollowers
   ];
 
   await pool.query(query, values);

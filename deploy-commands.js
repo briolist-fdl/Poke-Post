@@ -52,16 +52,16 @@ const setupCommand = new SlashCommandBuilder()
         }
         return opt;
       })
-      .addStringOption(opt =>
-        opt
-          .setName("campfire_username")
-          .setDescription("Your Campfire username")
-          .setRequired(false)
-      )
       .addBooleanOption(opt =>
         opt
           .setName("publish_to_followers")
           .setDescription("Allow your code to be republished to follower servers")
+          .setRequired(true)
+      )
+      .addStringOption(opt =>
+        opt
+          .setName("campfire_username")
+          .setDescription("Your Campfire username")
           .setRequired(false)
       )
   )
@@ -81,7 +81,7 @@ const setupCommand = new SlashCommandBuilder()
       .setDescription("Repost/update your public friend code post")
   );
 
-  function prettifyPattern(value) {
+function prettifyPattern(value) {
   return value
     .split("_")
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
