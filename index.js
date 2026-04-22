@@ -844,7 +844,7 @@ async function upsertProfile(profile) {
       publish_to_followers,
       updated_at
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
     ON CONFLICT (discord_user_id)
     DO UPDATE SET
       discord_tag = EXCLUDED.discord_tag,
