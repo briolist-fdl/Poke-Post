@@ -187,6 +187,74 @@ async function handleFriendcodeCommand(interaction) {
    await interaction.showModal(modal);
    return;
   }
+
+  if (subcommand === "republishing") {
+  const profile = await getProfile(interaction.user.id);
+
+  if (subcommand === "region") {
+  const profile = await getProfile(interaction.user.id);
+
+  if (!profile) {
+    return interaction.reply({
+      content: "You do not have a saved profile yet. Use `/friendcode setup` first.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const vivillonPattern = interaction.options.getString("vivillon_pattern", true);
+
+  if (!VIVILLON_PATTERNS.has(vivillonPattern)) {
+    return interaction.reply({
+      content: "Invalid Vivillon pattern.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const oldChannelId = profile.public_channel_id;
+  const newChannelId = getPublicChannelId(vivillonPattern);
+
+  await updateRegion(interaction.user.id, vivillonPattern, newChannelId);
+
+  const updatedProfile = await getProfile(interaction.user.id);
+
+  if (oldChannelId !== newChannelId) {
+    await deletePublicPost(profile, interaction.guild);
+    await setPublicMessage(interaction.user.id, newChannelId, null);
+    updatedProfile.public_message_id = null;
+  }
+
+  await repostProfile(updatedProfile, interaction.guild);
+
+  return interaction.reply({
+    content:
+      oldChannelId === newChannelId
+        ? `Your region has been updated to **${prettifyPattern(vivillonPattern)}**.`
+        : `Your region has been updated to **${prettifyPattern(vivillonPattern)}** and your post was moved to <#${newChannelId}>.`,
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+  if (!profile) {
+    return interaction.reply({
+      content: "You do not have a saved profile yet. Use `/friendcode setup` first.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const enabled = interaction.options.getBoolean("enabled", true);
+
+  await updateRepublishingPreference(interaction.user.id, enabled);
+
+  const updatedProfile = await getProfile(interaction.user.id);
+  await publishOrUpdateProfile(updatedProfile, interaction.guild);
+
+  return interaction.reply({
+    content: enabled
+      ? "Republishing is now turned on."
+      : "Republishing is now turned off.",
+    flags: MessageFlags.Ephemeral
+  });
+}
   
   if (subcommand === "view") {
     const profile = await getProfile(interaction.user.id);
@@ -223,7 +291,7 @@ async function handleFriendcodeCommand(interaction) {
     });
   }
 
-  if (subcommand === "republish") {
+  if (subcommand === "repost") {
     const profile = await getProfile(interaction.user.id);
 
     if (!profile) {
@@ -233,10 +301,10 @@ async function handleFriendcodeCommand(interaction) {
       });
     }
 
-    await republishProfile(profile, interaction.guild);
+    await repostProfile(profile, interaction.guild);
 
     return interaction.reply({
-      content: `Your profile has been republished in <#${profile.public_channel_id}>.`,
+      content: `Your profile has been reposted in <#${profile.public_channel_id}>.`,
       flags: MessageFlags.Ephemeral
     });
   }
@@ -430,7 +498,7 @@ async function publishOrUpdateProfile(profile, guild) {
   await setPublicMessage(profile.discord_user_id, targetChannel.id, sentMessage.id);
 }
 
-async function republishProfile(profile, guild) {
+async function repostProfile(profile, guild) {
   const targetChannel = await guild.channels.fetch(profile.public_channel_id);
   if (!targetChannel || !targetChannel.isTextBased()) {
     throw new Error("Target channel not found or not text-based.");
@@ -492,6 +560,31 @@ async function deleteDuplicatePosts(profile, guild) {
   for (const msg of duplicates.values()) {
     await msg.delete().catch(() => {});
   }
+}
+
+async function updateRegion(discordUserId, vivillonPattern, publicChannelId) {
+  await pool.query(
+    `
+    UPDATE friendcode_profiles
+    SET vivillon_pattern = $2,
+        public_channel_id = $3,
+        updated_at = NOW()
+    WHERE discord_user_id = $1
+    `,
+    [discordUserId, vivillonPattern, publicChannelId]
+  );
+}
+
+async function updateRepublishingPreference(discordUserId, enabled) {
+  await pool.query(
+    `
+    UPDATE friendcode_profiles
+    SET publish_to_followers = $2,
+        updated_at = NOW()
+    WHERE discord_user_id = $1
+    `,
+    [discordUserId, enabled]
+  );
 }
 
 async function ensureDatabaseConnection() {

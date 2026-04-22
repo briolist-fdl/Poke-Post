@@ -75,15 +75,41 @@ const setupCommand = new SlashCommandBuilder()
       .setName("delete")
       .setDescription("Delete your saved profile and public post.")
   )
-    .addSubcommand(sub =>
+  .addSubcommand(sub =>
     sub
-      .setName("republish")
+      .setName("repost")
       .setDescription("Repost your public friend code post.")
   )
-    .addSubcommand(sub =>
+  .addSubcommand(sub =>
     sub
       .setName("edit")
       .setDescription("Edit your existing friend code profile.")
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName("republishing")
+      .setDescription("Turn follower republishing on or off.")
+      .addBooleanOption(opt =>
+        opt
+          .setName("enabled")
+          .setDescription("Allow your code to be republished to follower servers.")
+          .setRequired(true)
+      )
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName("region")
+      .setDescription("Change your Vivillon region.")
+      .addStringOption(opt => {
+        opt
+          .setName("vivillon_pattern")
+          .setDescription("Your Vivillon pattern.")
+          .setRequired(true);
+        for (const choice of vivillonChoices) {
+          opt.addChoices({ name: prettifyPattern(choice), value: choice });
+        }
+        return opt;
+      })
   );
 
 function prettifyPattern(value) {
