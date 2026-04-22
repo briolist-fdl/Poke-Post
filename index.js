@@ -173,6 +173,21 @@ async function handleFriendcodeCommand(interaction) {
     return;
   }
 
+  if (subcommand === "edit") {
+  const profile = await getProfile(interaction.user.id);
+
+   if (!profile) {
+     return interaction.reply({
+       content: "You do not have a saved profile yet. Use `/friendcode setup` first.",
+       flags: MessageFlags.Ephemeral
+     });
+    }
+
+   const modal = buildEditModal(profile);
+   await interaction.showModal(modal);
+   return;
+  }
+  
   if (subcommand === "view") {
     const profile = await getProfile(interaction.user.id);
 
@@ -218,7 +233,7 @@ async function handleFriendcodeCommand(interaction) {
       });
     }
 
-    await publishOrUpdateProfile(profile, interaction.guild);
+    await republishProfile(profile, interaction.guild);
 
     return interaction.reply({
       content: `Your profile has been republished in <#${profile.public_channel_id}>.`,
@@ -318,6 +333,44 @@ function buildButtons(profile) {
   ];
 }
 
+const {
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
+} = require("discord.js");
+
+function buildEditModal(profile) {
+  return new ModalBuilder()
+    .setCustomId("edit_profile_modal")
+    .setTitle("Edit your friend code profile")
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("pokemon_username")
+          .setLabel("Pokémon GO Username")
+          .setStyle(TextInputStyle.Short)
+          .setValue(profile.pokemon_username)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("trainer_code")
+          .setLabel("Trainer Code (12 digits)")
+          .setStyle(TextInputStyle.Short)
+          .setValue(profile.trainer_code_formatted)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("campfire_username")
+          .setLabel("Campfire Username")
+          .setStyle(TextInputStyle.Short)
+          .setValue(profile.campfire_username || "")
+          .setRequired(false)
+      )
+    );
+}
+
 async function deleteDuplicatePosts(profile, guild) {
   const channel = await guild.channels.fetch(profile.public_channel_id);
   if (!channel || !channel.isTextBased()) return;
@@ -364,6 +417,34 @@ async function publishOrUpdateProfile(profile, guild) {
       return;
     } catch (error) {
       console.warn("Existing message missing, will repost:", error.message);
+    }
+  }
+
+  await deleteDuplicatePosts(profile, guild);
+
+  const sentMessage = await targetChannel.send({
+    content,
+    components
+  });
+
+  await setPublicMessage(profile.discord_user_id, targetChannel.id, sentMessage.id);
+}
+
+async function republishProfile(profile, guild) {
+  const targetChannel = await guild.channels.fetch(profile.public_channel_id);
+  if (!targetChannel || !targetChannel.isTextBased()) {
+    throw new Error("Target channel not found or not text-based.");
+  }
+
+  const content = buildPublicMessage(profile);
+  const components = buildButtons(profile);
+
+  if (profile.public_message_id) {
+    try {
+      const oldMessage = await targetChannel.messages.fetch(profile.public_message_id);
+      await oldMessage.delete().catch(() => {});
+    } catch (error) {
+      console.warn("Old message missing, continuing with fresh repost:", error.message);
     }
   }
 

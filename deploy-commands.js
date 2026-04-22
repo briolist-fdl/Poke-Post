@@ -25,27 +25,27 @@ const vivillonChoices = [
 
 const setupCommand = new SlashCommandBuilder()
   .setName("friendcode")
-  .setDescription("Register, update, or manage your Pokemon GO friend code profile")
+  .setDescription("Register, update, or manage your Pokemon GO friend code profile.")
   .addSubcommand(sub =>
     sub
       .setName("setup")
-      .setDescription("Create or update your friend code profile")
+      .setDescription("Create your friend code profile.")
       .addStringOption(opt =>
         opt
           .setName("pokemon_username")
-          .setDescription("Your Pokemon GO in-game username")
+          .setDescription("Your Pokemon GO in-game username.")
           .setRequired(true)
       )
       .addStringOption(opt =>
         opt
           .setName("trainer_code")
-          .setDescription("Your 12-digit Pokemon GO friend code")
+          .setDescription("Your 12-digit Pokemon GO friend code.")
           .setRequired(true)
       )
       .addStringOption(opt => {
         opt
           .setName("vivillon_pattern")
-          .setDescription("Your Vivillon pattern")
+          .setDescription("Your Vivillon pattern.")
           .setRequired(true);
         for (const choice of vivillonChoices) {
           opt.addChoices({ name: prettifyPattern(choice), value: choice });
@@ -55,30 +55,35 @@ const setupCommand = new SlashCommandBuilder()
       .addBooleanOption(opt =>
         opt
           .setName("publish_to_followers")
-          .setDescription("Allow your code to be republished to follower servers")
+          .setDescription("Allow your code to be republished to follower servers.")
           .setRequired(true)
       )
       .addStringOption(opt =>
         opt
           .setName("campfire_username")
-          .setDescription("Your Campfire username")
+          .setDescription("Your Campfire username.")
           .setRequired(false)
       )
   )
   .addSubcommand(sub =>
     sub
       .setName("view")
-      .setDescription("View your current saved profile")
+      .setDescription("View your current saved profile.")
   )
   .addSubcommand(sub =>
     sub
       .setName("delete")
-      .setDescription("Delete your saved profile and public post")
+      .setDescription("Delete your saved profile and public post.")
   )
-  .addSubcommand(sub =>
+    .addSubcommand(sub =>
     sub
       .setName("republish")
-      .setDescription("Repost/update your public friend code post")
+      .setDescription("Repost your public friend code post.")
+  )
+    .addSubcommand(sub =>
+    sub
+      .setName("edit")
+      .setDescription("Edit your existing friend code profile.")
   );
 
 function prettifyPattern(value) {
