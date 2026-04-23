@@ -49,6 +49,27 @@ const VIVILLON_PATTERNS = new Set([
   "tundra"
 ]);
 
+const REGION_EMOJIS = {
+  archipelago: "🏝️",
+  continental: "🌍",
+  elegant: "🌸",
+  garden: "🌿",
+  high_plains: "🌾",
+  icy_snow: "🧊",
+  jungle: "🌴",
+  marine: "🌊",
+  meadow: "🌼",
+  modern: "🏙️",
+  monsoon: "🌧️",
+  ocean: "🌊",
+  polar: "🐻‍❄️",
+  river: "🏞️",
+  sandstorm: "🏜️",
+  savanna: "🦁",
+  sun: "☀️",
+  tundra: "❄️"
+};
+
 const INTERNATIONAL_CHANNEL_ID = process.env.INTERNATIONAL_CHANNEL_ID;
 const TUNDRA_CHANNEL_ID = process.env.TUNDRA_CHANNEL_ID;
 
@@ -480,11 +501,9 @@ function buildPublicMessage(profile) {
     campfire: "<:campfire:1491036898389659678>"
   };
 
-  const isTundra = profile.vivillon_pattern === "tundra";
+  const regionEmoji = REGION_EMOJIS[profile.vivillon_pattern] || "";
 
-  const patternText = isTundra
-    ? "❄️ Tundra Trainer"
-    : `🌏 ${prettifyPattern(profile.vivillon_pattern)} Trainer`;
+const patternText = `${regionEmoji} ${prettifyPattern(profile.vivillon_pattern)} Trainer`.trim();
 
   let header = `${patternText} | ${EMOJIS.discord} <@${profile.discord_user_id} | ${EMOJIS.pokeball} ${profile.pokemon_username}>`;
 
