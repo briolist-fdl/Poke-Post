@@ -140,11 +140,14 @@ async function handleFriendcodeCommand(interaction) {
     const publishToFollowers =
   interaction.options.getBoolean("publish_to_followers") ?? true;
 
+  await interaction.deferReply({
+  flags: MessageFlags.Ephemeral
+});
+
     if (!VIVILLON_PATTERNS.has(vivillonPattern)) {
-      return interaction.reply({
-        content: "Invalid Vivillon pattern.",
-        flags: MessageFlags.Ephemeral
-      });
+      return interaction.editReply({
+  content: "Invalid Vivillon pattern."
+});
     }
 
     const normalizedCode = normalizeTrainerCode(trainerCodeInput);
@@ -174,7 +177,7 @@ async function handleFriendcodeCommand(interaction) {
     const profile = await getProfile(interaction.user.id);
     await publishOrUpdateProfile(profile, interaction.guild);
 
-    await interaction.reply({
+    await interaction.editreply({
       content: `Saved your profile and published it in <#${publicChannelId}>.`,
       flags: MessageFlags.Ephemeral
     });
@@ -419,7 +422,7 @@ if (subcommand === "remove-code") {
 
 async function handleCopyButton(interaction) {
   const [, userId, codeIndexRaw] = interaction.customId.split(":");
-  const codeIndex = Number(codeIndexRaw);
+  const codeIndex = codeIndexRaw === undefined ? 0 : Number(codeIndexRaw);
 
   const profile = await getProfile(userId);
 
@@ -482,7 +485,7 @@ function buildPublicMessage(profile) {
     ? "❄️ Tundra Trainer"
     : `🌏 ${prettifyPattern(profile.vivillon_pattern)} Trainer`;
 
-  let header = `${patternText} | ${EMOJIS.pokeball} ${profile.pokemon_username}`;
+  let header = `${patternText} | ${EMOJIS.pokeball} ${profile.pokemon_username} | Discord: <@${profile.discord_user_id}>`;
 
   if (profile.campfire_username) {
     header += ` | ${EMOJIS.campfire} ${profile.campfire_username}`;
@@ -528,7 +531,7 @@ function buildButtons(profile) {
       ...allCodes.map((_, index) =>
         new ButtonBuilder()
           .setCustomId(`copy_friend_code:${profile.discord_user_id}:${index}`)
-          .setLabel(index === 0 ? "📋 Copy main code" : `📋 Copy code ${index + 1}`)
+          .setLabel(index === 0 ? "📋 Copy friend code" : `📋 Copy code ${index + 1}`)
           .setStyle(ButtonStyle.Secondary)
       )
     )
