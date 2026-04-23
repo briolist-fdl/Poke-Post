@@ -476,6 +476,7 @@ function getPublicChannelId(pattern) {
 function buildPublicMessage(profile) {
   const EMOJIS = {
     pokeball: "<:pokeball:426098818560557068>",
+    discord: "<:discord:1491037322701963375>",
     campfire: "<:campfire:1491036898389659678>"
   };
 
@@ -485,7 +486,7 @@ function buildPublicMessage(profile) {
     ? "❄️ Tundra Trainer"
     : `🌏 ${prettifyPattern(profile.vivillon_pattern)} Trainer`;
 
-  let header = `${patternText} | ${EMOJIS.pokeball} ${profile.pokemon_username} | Discord: <@${profile.discord_user_id}>`;
+  let header = `${patternText} | ${EMOJIS.discord} <@${profile.discord_user_id} | ${EMOJIS.pokeball} ${profile.pokemon_username}>`;
 
   if (profile.campfire_username) {
     header += ` | ${EMOJIS.campfire} ${profile.campfire_username}`;
