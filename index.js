@@ -505,11 +505,13 @@ function buildPublicMessage(profile) {
 
 const patternText = `${regionEmoji} ${prettifyPattern(profile.vivillon_pattern)} Trainer`.trim();
 
-  let header = `${patternText} | ${EMOJIS.discord} <@${profile.discord_user_id}> | ${EMOJIS.pokeball} ${profile.pokemon_username}`;
+  const lineOne = patternText;
 
-  if (profile.campfire_username) {
-    header += ` | ${EMOJIS.campfire} ${profile.campfire_username}`;
-  }
+let lineTwo = `${EMOJIS.discord} <@${profile.discord_user_id}> | ${EMOJIS.pokeball} ${profile.pokemon_username}`;
+
+if (profile.campfire_username) {
+  lineTwo += ` | ${EMOJIS.campfire} ${profile.campfire_username}`;
+}
 
   const allCodes = [
     profile.trainer_code_formatted,
@@ -523,10 +525,12 @@ const patternText = `${regionEmoji} ${prettifyPattern(profile.vivillon_pattern)}
   }
 
   return [
-    header,
-    "",
-    codeLine
-  ].join("\n");
+  lineOne,
+  "",
+  lineTwo,
+  "",
+  codeLine
+].join("\n");
 }
 
 function buildProfilePreview(profile) {
