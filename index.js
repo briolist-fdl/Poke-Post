@@ -198,7 +198,7 @@ async function handleFriendcodeCommand(interaction) {
     const profile = await getProfile(interaction.user.id);
     await publishOrUpdateProfile(profile, interaction.guild);
 
-    await interaction.editreply({
+    await interaction.editReply({
       content: `Saved your profile and published it in <#${publicChannelId}>.`,
       flags: MessageFlags.Ephemeral
     });
