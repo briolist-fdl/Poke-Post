@@ -505,7 +505,7 @@ function buildPublicMessage(profile) {
 
 const patternText = `${regionEmoji} ${prettifyPattern(profile.vivillon_pattern)} Trainer`.trim();
 
-  let header = `${patternText} | ${EMOJIS.discord} <@${profile.discord_user_id}> | ${EMOJIS.pokeball} ${profile.pokemon_username}>`;
+  let header = `${patternText} | ${EMOJIS.discord} <@${profile.discord_user_id}> | ${EMOJIS.pokeball} ${profile.pokemon_username}`;
 
   if (profile.campfire_username) {
     header += ` | ${EMOJIS.campfire} ${profile.campfire_username}`;
