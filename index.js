@@ -942,39 +942,62 @@ async function touchProfile(discordUserId) {
 }
 
 function startBumpJob() {
-  const intervalHours = Number(process.env.BUMP_INTERVAL_HOURS || 12);
-  const intervalMs = intervalHours * 60 * 60 * 1000;
+  console.log("Bump job enabled.");
 
-  console.log(`Bump job enabled. Running every ${intervalHours} hour(s).`);
+  startBumpSchedule("tundra", {
+    channelId: TUNDRA_CHANNEL_ID,
+    intervalHours: Number(process.env.BUMP_TUNDRA_INTERVAL_HOURS || 24),
+    countPerRun: Number(process.env.BUMP_TUNDRA_COUNT_PER_RUN || 1),
+    cooldownDays: Number(process.env.BUMP_TUNDRA_COOLDOWN_DAYS || 5)
+  });
+
+  startBumpSchedule("international", {
+    channelId: INTERNATIONAL_CHANNEL_ID,
+    intervalHours: Number(process.env.BUMP_INTERNATIONAL_INTERVAL_HOURS || 11),
+    countPerRun: Number(process.env.BUMP_INTERNATIONAL_COUNT_PER_RUN || 3),
+    cooldownDays: Number(process.env.BUMP_INTERNATIONAL_COOLDOWN_DAYS || 3)
+  });
+}
+
+function startBumpSchedule(name, config) {
+  const intervalMs = config.intervalHours * 60 * 60 * 1000;
+
+  console.log(
+    `Bump schedule "${name}" enabled. Running every ${config.intervalHours} hour(s), count ${config.countPerRun}, cooldown ${config.cooldownDays} day(s).`
+  );
+
+  runBumpCycle(config).catch(error => {
+    console.error(`Initial bump cycle failed for "${name}":`, error);
+  });
 
   setInterval(async () => {
     try {
-      await runBumpCycle();
+      await runBumpCycle(config);
     } catch (error) {
-      console.error("Bump cycle failed:", error);
+      console.error(`Bump cycle failed for "${name}":`, error);
     }
   }, intervalMs);
 }
 
-async function runBumpCycle() {
+async function runBumpCycle(config) {
   const guild = client.guilds.cache.get(process.env.DISCORD_GUILD_ID);
   if (!guild) return;
 
-  const bumpCount = Number(process.env.BUMP_COUNT_PER_RUN || 3);
-  const cooldownDays = Number(process.env.BUMP_COOLDOWN_DAYS || 7);
-
-  const cutoff = new Date(Date.now() - cooldownDays * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(
+    Date.now() - config.cooldownDays * 24 * 60 * 60 * 1000
+  );
 
   const result = await pool.query(
     `
     SELECT *
     FROM friendcode_profiles
     WHERE public_message_id IS NOT NULL
-      AND (last_bumped_at IS NULL OR last_bumped_at < $1)
+      AND public_channel_id = $1
+      AND (last_bumped_at IS NULL OR last_bumped_at < $2)
     ORDER BY RANDOM()
-    LIMIT $2
+    LIMIT $3
     `,
-    [cutoff.toISOString(), bumpCount]
+    [config.channelId, cutoff.toISOString(), config.countPerRun]
   );
 
   for (const profile of result.rows) {
