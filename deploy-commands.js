@@ -147,20 +147,46 @@ const commands = [setupCommand.toJSON()];
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
-(async () => {
-  try {
-    console.log("Deploying guild slash commands...");
+const deployGlobalCommands =
+  String(process.env.DEPLOY_GLOBAL_COMMANDS || "").toLowerCase() === "true";
 
-    await rest.put(
-      Routes.applicationGuildCommands(
-        process.env.DISCORD_CLIENT_ID,
-        process.env.DISCORD_GUILD_ID
-      ),
-      { body: commands }
-    );
+async function deployCommands() {
+  const clientId = process.env.DISCORD_CLIENT_ID;
+  const guildId = process.env.DISCORD_GUILD_ID;
 
-    console.log("Guild slash commands deployed.");
-  } catch (error) {
-    console.error(error);
+  console.log("Deploying Poké-Post slash commands...");
+  console.log("Client ID:", clientId);
+  console.log("Guild ID:", guildId || "(none)");
+  console.log("Deploy global:", deployGlobalCommands);
+
+  if (!clientId) {
+    throw new Error("Missing DISCORD_CLIENT_ID");
   }
-})();
+
+  if (!deployGlobalCommands && !guildId) {
+    throw new Error(
+      "Missing DISCORD_GUILD_ID for guild deploy. Set DEPLOY_GLOBAL_COMMANDS=true to deploy globally."
+    );
+  }
+
+  const route = deployGlobalCommands
+    ? Routes.applicationCommands(clientId)
+    : Routes.applicationGuildCommands(clientId, guildId);
+
+  console.log(
+    deployGlobalCommands
+      ? "Deploying Poké-Post commands globally."
+      : `Deploying Poké-Post commands to guild ${guildId}.`
+  );
+
+  await rest.put(route, {
+    body: commands,
+  });
+
+  console.log("Poké-Post slash commands deployed.");
+}
+
+deployCommands().catch((error) => {
+  console.error("Failed to deploy Poké-Post slash commands:", error);
+  process.exit(1);
+});
