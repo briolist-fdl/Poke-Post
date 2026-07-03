@@ -100,14 +100,17 @@ Poké-Post is configured through environment variables.
 DISCORD_TOKEN=
 DISCORD_CLIENT_ID=
 DISCORD_GUILD_ID=
+DEPLOY_GLOBAL_COMMANDS=
 DATABASE_URL=
 
 INTERNATIONAL_CHANNEL_ID=
-TUNDRA_CHANNEL_ID=
+LOCAL_CHANNEL_ID=
 
 BOT_ID=poke-post
 SUPPORT_MESSAGES_ENABLED=true
 ```
+
+`DEPLOY_GLOBAL_COMMANDS=true` is only needed when deploying slash commands globally for public bot usage.
 
 Optional bump/repost settings:
 
@@ -135,19 +138,35 @@ SUPPORT_MESSAGE_CHANCE=
 
 Install dependencies:
 
-```bash id="2zhf19"
+```bash
 npm install
 ```
 
-Deploy slash commands:
+Deploy slash commands to the configured development/test guild:
 
-```bash id="ww0nd5"
+```bash
 npm run deploy-commands
 ```
 
+Deploy slash commands globally for public bot usage:
+
+```bash
+DEPLOY_GLOBAL_COMMANDS=true npm run deploy-commands
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:DEPLOY_GLOBAL_COMMANDS="true"
+npm run deploy-commands
+Remove-Item Env:\DEPLOY_GLOBAL_COMMANDS
+```
+
+Guild deploy is useful for testing because commands update quickly. Global deploy is needed when the bot is installed in other servers.
+
 Start the bot:
 
-```bash id="zc3kv4"
+```bash
 npm start
 ```
 
