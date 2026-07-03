@@ -107,7 +107,7 @@ client.on('messageCreate', async (message) => {
       } catch (err) {
         console.error('Failed to delete warning message:', err);
       }
-    }, 11000);
+    }, 22000);
   } catch (error) {
     console.error('Failed to moderate friend code channel message:', error);
   }
