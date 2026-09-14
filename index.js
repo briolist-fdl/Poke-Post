@@ -317,7 +317,10 @@ async function handleFriendcodeCommand(interaction) {
       });
     }
 
-    return replySuccess(interaction, buildProfilePreview(profile));
+    return interaction.reply({
+      content: buildProfilePreview(profile),
+      flags: MessageFlags.Ephemeral
+    });
   }
 
   if (subcommand === "delete") {
@@ -498,7 +501,7 @@ function getPublicChannelId(pattern) {
   return pattern === "tundra" ? TUNDRA_CHANNEL_ID : INTERNATIONAL_CHANNEL_ID;
 }
 
-function buildPublicMessage(profile) {
+function buildPublicMessage(profile, { bumped = false } = {}) {
   const EMOJIS = {
     pokeball: "<:pokeball:426098818560557068>",
     discord: "<:discord:1491037322701963375>",
@@ -509,7 +512,7 @@ function buildPublicMessage(profile) {
 
   const patternText = `${regionEmoji} ${prettifyPattern(profile.vivillon_pattern)} Trainer`.trim();
 
-  const lineOne = patternText;
+  const lineOne = bumped ? `${patternText} · *bumped*` : patternText;
 
   let lineTwo = `${EMOJIS.discord} <@${profile.discord_user_id}> | ${EMOJIS.pokeball} ${profile.pokemon_username}`;
 
@@ -988,7 +991,7 @@ async function bumpProfile(profile, guild) {
   const channel = await guild.channels.fetch(profile.public_channel_id);
   if (!channel || !channel.isTextBased()) return;
 
-  const content = buildPublicMessage(profile);
+  const content = buildPublicMessage(profile, { bumped: true });
   const components = buildButtons(profile);
 
   try {
