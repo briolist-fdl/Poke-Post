@@ -59,7 +59,7 @@ function createRegionModerator({ pool, client, configuredGuildId, patterns, getP
         }
       }
       const updated = { ...profile, vivillon_pattern: pattern, public_channel_id: targetId };
-      const payload = { content: buildPublicMessage(updated), components: buildButtons(updated), allowedMentions: { parse: [] } };
+      const payload = { content: await buildPublicMessage(updated), components: buildButtons(updated), allowedMentions: { parse: [] } };
       if (source.id === target.id && oldMessage) {
         oldPayload = { content: oldMessage.content, components: oldMessage.components, allowedMentions: { parse: [] } };
         await oldMessage.edit(payload);

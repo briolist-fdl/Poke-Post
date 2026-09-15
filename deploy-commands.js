@@ -147,6 +147,10 @@ setupCommand.addSubcommandGroup(group => group
   .setName('admin')
   .setDescription('Moderate saved friend-code profiles.')
   .addSubcommand(sub => sub
+    .setName('remove')
+    .setDescription('Remove a public post and stop auto-bumping; keep the saved profile.')
+    .addStringOption(opt => opt.setName('user').setDescription('The profile owner: @mention or user ID (also works for unknown users).').setRequired(true)))
+  .addSubcommand(sub => sub
     .setName('region')
     .setDescription('Correct a user’s Vivillon region and update their post.')
     .addUserOption(opt => opt.setName('user').setDescription('The profile owner.').setRequired(true))

@@ -13,7 +13,7 @@ It lets players create and manage a structured friend code profile, then posts t
 * Change Vivillon region
 * Turn follower republishing on or off
 * Post to dedicated Tundra and international friend code channels
-* Optional automatic bumping/reposting system. Automatic bumps retain the visible user mention without sending a mention ping. Normal channel notification settings still apply.
+* Optional automatic bumping/reposting system. Public posts show a single linked Discord username instead of a user mention, without a mention ping. Normal channel notification settings still apply.
 * PostgreSQL-backed profile storage
 * Ephemeral command responses for user actions
 
@@ -262,3 +262,20 @@ https://buymeacoffee.com/andreasviken
 ## License
 
 No license has been specified yet.
+
+### Remove a public profile post
+
+`/post admin remove user:<@mention or user ID>` requires Manage Messages in the
+command channel and is restricted to the configured home server. The command
+accepts a raw user ID so a post can be removed even if Discord cannot display its
+owner. It removes only the bot's stored public post and clears its message reference;
+the saved profile, codes and republishing preference remain. Automatic bumping skips
+removed posts, including bumps already selected before removal. A row lock serializes
+bumping with moderator removal/region correction.
+
+The private response confirms the result and the moderation log records IDs and
+outcome, without friend codes. This is not a posting ban: an owner can publish again
+through the existing profile commands, and a moderator's region correction can also
+recreate the post. Followed/crossposted copies are not independently deleted by this
+command. If the Discord deletion succeeds but database confirmation fails, the reply
+requests a retry to finish disabling bumping. A missing post is safe to remove again.

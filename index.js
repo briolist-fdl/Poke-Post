@@ -74,6 +74,8 @@ const REGION_EMOJIS = {
 const INTERNATIONAL_CHANNEL_ID = process.env.INTERNATIONAL_CHANNEL_ID;
 const TUNDRA_CHANNEL_ID = process.env.TUNDRA_CHANNEL_ID;
 
+const { createPostRemover } = require('./src/moderateRemove');
+const handlePostRemoval = createPostRemover({ pool, client, configuredGuildId: process.env.DISCORD_GUILD_ID });
 const { createRegionModerator } = require('./src/moderateRegion');
 const handleRegionModeration = createRegionModerator({
   pool, client, configuredGuildId: process.env.DISCORD_GUILD_ID,
@@ -149,7 +151,7 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === "post") {
         if (interaction.options.getSubcommandGroup(false) === "admin") {
-          await handleRegionModeration(interaction);
+          if (interaction.options.getSubcommand() === "remove") await handlePostRemoval(interaction); else await handleRegionModeration(interaction);
         } else {
           await handleFriendcodeCommand(interaction);
         }
@@ -511,7 +513,7 @@ function getPublicChannelId(pattern) {
   return pattern === "tundra" ? TUNDRA_CHANNEL_ID : INTERNATIONAL_CHANNEL_ID;
 }
 
-function buildPublicMessage(profile, { bumped = false } = {}) {
+async function buildPublicMessage(profile, { bumped = false } = {}) {
   const EMOJIS = {
     pokeball: "<:pokeball:426098818560557068>",
     discord: "<:discord:1491037322701963375>",
@@ -524,7 +526,17 @@ function buildPublicMessage(profile, { bumped = false } = {}) {
 
   const lineOne = bumped ? `${patternText} · *bumped*` : patternText;
 
-  let lineTwo = `${EMOJIS.discord} <@${profile.discord_user_id}> | ${EMOJIS.pokeball} ${profile.pokemon_username}`;
+  let discordName = 'Discord profile';
+  try {
+    const user = await client.users.fetch(profile.discord_user_id, { force: true });
+    if (user?.username) discordName = user.username;
+  } catch (_) {
+    // A failed lookup must not break posting or mislabel a deleted account.
+    // Keep the stable profile link with a neutral label; retry on the next update.
+  }
+  const label = discordName.replace(/([\\`*_{}\[\]()<>~|])/g, '\\$1');
+  const discordLink = `[${label}](<https://discord.com/users/${profile.discord_user_id}>)`;
+  let lineTwo = `${EMOJIS.discord} ${discordLink} | ${EMOJIS.pokeball} ${profile.pokemon_username}`;
 
   if (profile.campfire_username) {
     lineTwo += ` | ${EMOJIS.campfire} ${profile.campfire_username}`;
@@ -645,7 +657,7 @@ async function publishOrUpdateProfile(profile, guild) {
     throw new Error("Target channel not found or not text-based.");
   }
 
-  const content = buildPublicMessage(profile);
+  const content = await buildPublicMessage(profile);
   const components = buildButtons(profile);
 
   const messageId = profile.public_message_id;
@@ -694,7 +706,7 @@ async function repostProfile(profile, guild) {
     throw new Error("Target channel not found or not text-based.");
   }
 
-  const content = buildPublicMessage(profile);
+  const content = await buildPublicMessage(profile);
   const components = buildButtons(profile);
 
   if (profile.public_message_id) {
@@ -998,10 +1010,31 @@ async function runBumpCycle(config) {
 }
 
 async function bumpProfile(profile, guild) {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    // Recheck under the same row lock used by moderation: a queued bump must
+    // never recreate a removed post or use references from before a correction.
+    const { rows } = await db.query('SELECT * FROM friendcode_profiles WHERE discord_user_id = $1 FOR UPDATE', [profile.discord_user_id]);
+    const current = rows[0];
+    if (current?.public_message_id && current.public_message_id === profile.public_message_id &&
+        current.public_channel_id === profile.public_channel_id) {
+      await bumpLocked(current, guild, db);
+    }
+    await db.query('COMMIT');
+  } catch (error) {
+    await db.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    db.release();
+  }
+}
+
+async function bumpLocked(profile, guild, db) {
   const channel = await guild.channels.fetch(profile.public_channel_id);
   if (!channel || !channel.isTextBased()) return;
 
-  const content = buildPublicMessage(profile, { bumped: true });
+  const content = await buildPublicMessage(profile, { bumped: true });
   const components = buildButtons(profile);
 
   try {
@@ -1013,7 +1046,7 @@ async function bumpProfile(profile, guild) {
 
   const newMessage = await channel.send({ content, components, allowedMentions: { parse: [] } });
 
-  await pool.query(
+  await db.query(
     `
     UPDATE friendcode_profiles
     SET public_message_id = $2,
