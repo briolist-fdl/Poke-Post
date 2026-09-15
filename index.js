@@ -932,7 +932,11 @@ async function bumpLocked(profile, guild, db) {
     }
   } catch (_) {}
 
-  const newMessage = await channel.send({ content, components, allowedMentions: { parse: [] } });
+  // Reuse the same delivery identity when Discord accepted a send but its reply
+  // timed out. A nonce based on the replaced post also survives a process retry.
+  const newMessage = await channel.send({ content, components, allowedMentions: { parse: [] },
+    nonce: `b${profile.public_message_id}`, enforceNonce: true,
+    flags: MessageFlags.SuppressNotifications });
 
   await db.query(
     `

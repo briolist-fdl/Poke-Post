@@ -13,7 +13,7 @@ It lets players create and manage a structured friend code profile, then posts t
 * Change Vivillon region
 * Turn follower republishing on or off
 * Post to dedicated Tundra and international friend code channels
-* Optional automatic bumping/reposting system. Public posts show a single linked Discord username instead of a user mention, without a mention ping. Normal channel notification settings still apply.
+* Optional automatic bumping/reposting system. Public posts show a single linked Discord username instead of a user mention, without a mention ping. Automatic bumps suppress push notifications; unread indicators may still appear. Other posts follow normal channel notification settings.
 * PostgreSQL-backed profile storage
 * Ephemeral command responses for user actions
 
@@ -293,3 +293,5 @@ through the existing profile commands, and a moderator's region correction can a
 recreate the post. Followed/crossposted copies are not independently deleted by this
 command. If the Discord deletion succeeds but database confirmation fails, the reply
 requests a retry to finish disabling bumping. A missing post is safe to remove again.
+
+Automatic bump sends use an enforced nonce derived from the replaced message ID to prevent duplicate creation on short Discord API retries. Discord deduplicates these nonces for a few minutes; this is not a permanent exactly-once guarantee and does not remove pre-existing duplicate posts.
