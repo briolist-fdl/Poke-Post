@@ -29,41 +29,7 @@ const setupCommand = new SlashCommandBuilder()
   .addSubcommand(sub =>
     sub
       .setName("setup")
-      .setDescription("Create your friend code profile.")
-      .addStringOption(opt =>
-        opt
-          .setName("pokemon_username")
-          .setDescription("Your Pokemon GO in-game username.")
-          .setRequired(true)
-      )
-      .addStringOption(opt =>
-        opt
-          .setName("trainer_code")
-          .setDescription("Your 12-digit Pokemon GO friend code.")
-          .setRequired(true)
-      )
-      .addStringOption(opt => {
-        opt
-          .setName("vivillon_pattern")
-          .setDescription("Your Vivillon pattern.")
-          .setRequired(true);
-        for (const choice of vivillonChoices) {
-          opt.addChoices({ name: prettifyPattern(choice), value: choice });
-        }
-        return opt;
-      })
-      .addBooleanOption(opt =>
-        opt
-          .setName("publish_to_followers")
-          .setDescription("Allow your code to be republished to follower servers.")
-          .setRequired(true)
-      )
-      .addStringOption(opt =>
-        opt
-          .setName("campfire_username")
-          .setDescription("Your Campfire username.")
-          .setRequired(false)
-      )
+      .setDescription("Create your friend code profile in a form.")
   )
   .addSubcommand(sub =>
     sub

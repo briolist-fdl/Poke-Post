@@ -31,7 +31,9 @@ Poké-Post uses one main slash command:
 /post setup
 ```
 
-Creates a friend code profile.
+Opens a profile form; no slash-command arguments are required. `/post edit` opens
+the same form with saved values. Running setup when a profile already exists opens
+that profile for editing and preserves its additional codes.
 
 Required fields:
 
@@ -47,6 +49,18 @@ Optional field:
 ```text id="8p9j0d"
 campfire_username
 ```
+
+Vivillon region and republishing consent use dropdowns in the form. New profiles
+require an explicit yes/no republishing choice. Submission returns a private
+confirmation and preview. Changing region publishes in the new channel before
+removing the old post. If publishing fails, the saved profile is retained and the
+private reply explains how to retry.
+
+This UI change still uses the current home-server profile storage. The separate
+multi-server model and optional-profile-info button are not activated by this
+release. It needs command re-registration as well as deployment. Forms opened
+before the update must be reopened. The locked discord.js version supports modal
+Labels and String Select components; no dependency update is required.
 
 ### Profile management
 

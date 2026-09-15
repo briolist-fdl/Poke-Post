@@ -74,6 +74,11 @@ const REGION_EMOJIS = {
 const INTERNATIONAL_CHANNEL_ID = process.env.INTERNATIONAL_CHANNEL_ID;
 const TUNDRA_CHANNEL_ID = process.env.TUNDRA_CHANNEL_ID;
 
+const { createProfileForm } = require('./src/profileForm');
+const profileForm = createProfileForm({
+  configuredGuildId: process.env.DISCORD_GUILD_ID, patterns: VIVILLON_PATTERNS,
+  getProfile, normalizeCode: normalizeTrainerCode, saveAndPublish: saveFormProfile
+});
 const { createPostRemover } = require('./src/moderateRemove');
 const handlePostRemoval = createPostRemover({ pool, client, configuredGuildId: process.env.DISCORD_GUILD_ID });
 const { createRegionModerator } = require('./src/moderateRegion');
@@ -160,8 +165,9 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     if (interaction.isModalSubmit()) {
+      if (interaction.customId.startsWith("profile_form:")) { await profileForm.submit(interaction); return; }
       if (interaction.customId === "edit_profile_modal") {
-        await handleEditProfileModal(interaction);
+        await interaction.reply({ content: "This form has been updated. Please reopen `/post edit`.", flags: MessageFlags.Ephemeral });
       }
       return;
     }
@@ -191,69 +197,9 @@ client.on(Events.InteractionCreate, async interaction => {
 async function handleFriendcodeCommand(interaction) {
   const subcommand = interaction.options.getSubcommand();
 
-  if (subcommand === "setup") {
-    const pokemonUsername = interaction.options.getString("pokemon_username", true).trim();
-    const trainerCodeInput = interaction.options.getString("trainer_code", true).trim();
-    const vivillonPattern = interaction.options.getString("vivillon_pattern", true);
-    const campfireUsername = interaction.options.getString("campfire_username")?.trim() || null;
-    const publishToFollowers =
-      interaction.options.getBoolean("publish_to_followers") ?? true;
-
-    await interaction.deferReply({
-      flags: MessageFlags.Ephemeral
-    });
-
-    if (!VIVILLON_PATTERNS.has(vivillonPattern)) {
-      return interaction.editReply({
-        content: "Invalid Vivillon pattern."
-      });
-    }
-
-    const normalizedCode = normalizeTrainerCode(trainerCodeInput);
-    if (!normalizedCode) {
-      return interaction.editReply({
-        content: "Trainer code must contain exactly 12 digits."
-      });
-    }
-
-    const formattedCode = formatTrainerCode(normalizedCode);
-    const publicChannelId = getPublicChannelId(vivillonPattern);
-
-    await upsertProfile({
-      discordUserId: interaction.user.id,
-      discordTag: interaction.user.tag,
-      pokemonUsername,
-      trainerCodeRaw: normalizedCode,
-      trainerCodeFormatted: formattedCode,
-      additionalCodes: [],
-      campfireUsername,
-      vivillonPattern,
-      publicChannelId,
-      publishToFollowers
-    });
-
-    const profile = await getProfile(interaction.user.id);
-    await publishOrUpdateProfile(profile, interaction.guild);
-
-    await editReplySuccess(interaction, `Saved your profile and published it in <#${publicChannelId}>.`);
-    return;
+  if (subcommand === "setup" || subcommand === "edit") {
+    return profileForm.open(interaction, subcommand);
   }
-
-  if (subcommand === "edit") {
-    const profile = await getProfile(interaction.user.id);
-
-    if (!profile) {
-      return interaction.reply({
-        content: "You do not have a saved profile yet. Use `/post setup` first.",
-        flags: MessageFlags.Ephemeral
-      });
-    }
-
-    const modal = buildEditModal(profile);
-    await interaction.showModal(modal);
-    return;
-  }
-
   if (subcommand === "republishing") {
     const profile = await getProfile(interaction.user.id);
 
@@ -591,44 +537,6 @@ function buildButtons(profile) {
   ];
 }
 
-const {
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle
-} = require("discord.js");
-
-function buildEditModal(profile) {
-  return new ModalBuilder()
-    .setCustomId("edit_profile_modal")
-    .setTitle("Edit your friend code profile")
-    .addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId("pokemon_username")
-          .setLabel("Pokémon GO Username")
-          .setStyle(TextInputStyle.Short)
-          .setValue(profile.pokemon_username)
-          .setRequired(true)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId("trainer_code")
-          .setLabel("Trainer Code (12 digits)")
-          .setStyle(TextInputStyle.Short)
-          .setValue(profile.trainer_code_formatted)
-          .setRequired(true)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId("campfire_username")
-          .setLabel("Campfire Username")
-          .setStyle(TextInputStyle.Short)
-          .setValue(profile.campfire_username || "")
-          .setRequired(false)
-      )
-    );
-}
-
 async function deleteDuplicatePosts(profile, guild) {
   const channel = await guild.channels.fetch(profile.public_channel_id);
   if (!channel || !channel.isTextBased()) return;
@@ -767,57 +675,37 @@ async function updateRepublishingPreference(discordUserId, enabled) {
   );
 }
 
-async function handleEditProfileModal(interaction) {
-  const profile = await getProfile(interaction.user.id);
-
-  if (!profile) {
-    return interaction.reply({
-      content: "You do not have a saved profile yet. Use `/post setup` first.",
-      flags: MessageFlags.Ephemeral
-    });
+async function saveFormProfile({ user, guild, current, pokemonUsername, trainerCodeRaw,
+  campfireUsername, vivillonPattern, publishToFollowers }) {
+  const publicChannelId = getPublicChannelId(vivillonPattern);
+  const target = publicChannelId && await guild.channels.fetch(publicChannelId);
+  if (!target || target.guildId !== guild.id || !target.isTextBased()) {
+    throw new Error('The destination friend-code channel is unavailable.');
   }
-
-  const pokemonUsername = interaction.fields
-    .getTextInputValue("pokemon_username")
-    .trim();
-
-  const trainerCodeInput = interaction.fields
-    .getTextInputValue("trainer_code")
-    .trim();
-
-  const campfireRaw = interaction.fields
-    .getTextInputValue("campfire_username")
-    .trim();
-
-  const campfireUsername = campfireRaw || null;
-
-  const normalizedCode = normalizeTrainerCode(trainerCodeInput);
-  if (!normalizedCode) {
-    return interaction.reply({
-      content: "Trainer code must contain exactly 12 digits.",
-      flags: MessageFlags.Ephemeral
-    });
+  await upsertProfile({ discordUserId: user.id, discordTag: user.tag, pokemonUsername,
+    trainerCodeRaw, trainerCodeFormatted: formatTrainerCode(trainerCodeRaw),
+    additionalCodes: current?.additional_codes || [], campfireUsername,
+    vivillonPattern, publicChannelId, publishToFollowers });
+  const updated = await getProfile(user.id);
+  try {
+    await publishOrUpdateProfile(updated, guild);
+  } catch (error) {
+    console.warn('Profile form saved but publication failed:', error.code || 'unknown');
+    return 'Your profile was saved, but the public post could not be updated. Please try `/post repost`. If you changed region, the previous post may also need moderator cleanup.';
   }
-
-  const formattedCode = formatTrainerCode(normalizedCode);
-
-  await upsertProfile({
-    discordUserId: interaction.user.id,
-    discordTag: interaction.user.tag,
-    pokemonUsername,
-    trainerCodeRaw: normalizedCode,
-    trainerCodeFormatted: formattedCode,
-    additionalCodes: profile.additional_codes || [],
-    campfireUsername,
-    vivillonPattern: profile.vivillon_pattern,
-    publicChannelId: profile.public_channel_id,
-    publishToFollowers: profile.publish_to_followers
-  });
-
-  const updatedProfile = await getProfile(interaction.user.id);
-  await publishOrUpdateProfile(updatedProfile, interaction.guild);
-
-  return replySuccess(interaction, "Your profile has been updated.");
+  let cleanupWarning = '';
+  if (current?.public_message_id && current.public_channel_id !== publicChannelId) {
+    try {
+      const source = await guild.channels.fetch(current.public_channel_id);
+      if (!source || source.guildId !== guild.id) throw Error('Invalid old profile channel');
+      const oldPost = await source.messages.fetch(current.public_message_id);
+      if (oldPost.author.id !== client.user.id) throw Error('Old post is not authored by this bot');
+      await oldPost.delete();
+    } catch (error) {
+      if (error.code !== 10008) cleanupWarning = '\nThe new post is ready, but the previous post needs moderator cleanup.';
+    }
+  }
+  return `Saved your profile in <#${publicChannelId}>.\n\n${buildProfilePreview(updated)}${cleanupWarning}`;
 }
 
 async function ensureDatabaseConnection() {
