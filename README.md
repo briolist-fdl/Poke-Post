@@ -295,3 +295,32 @@ command. If the Discord deletion succeeds but database confirmation fails, the r
 requests a retry to finish disabling bumping. A missing post is safe to remove again.
 
 Automatic bump sends use an enforced nonce derived from the replaced message ID to prevent duplicate creation on short Discord API retries. Discord deduplicates these nonces for a few minutes; this is not a permanent exactly-once guarantee and does not remove pre-existing duplicate posts.
+
+## Vivillon groups and emoji decisions
+
+See [VIVILLON-STRUCTURE.md](VIVILLON-STRUCTURE.md) for the current Tundraheim group mapping, post emojis and agreed future routing direction. It supersedes earlier candidate lists.
+
+## Automatic bump cadence
+
+With BUMP_ENABLED=true, International runs hourly and Tundra every 3 hours during
+one transition sweep for the September 2026 Vivillon emoji update. Each channel
+then automatically switches to its normal cadence: International every 4 hours,
+Tundra every 8 hours. Exactly one eligible profile is selected per run. International
+uses whole-hour UTC slots; Tundra uses UTC slots offset by 30 minutes. A shared
+30-minute minimum gap also separates delayed sends across the two feeds.
+
+The scheduler creates poke_post_bump_runs and poke_post_bump_queue tables on first
+startup. These retain the original active-post queue and completion across restarts.
+Transition selects oldest last_bumped_at first (never-bumped first); normal operation
+selects randomly. Replacement posts and removals are dropped from the queue. New
+profiles are already rendered with current emojis and are not added to the sweep.
+Existing BUMP_TUNDRA_COOLDOWN_DAYS (default 5) and
+BUMP_INTERNATIONAL_COOLDOWN_DAYS (default 3) remain in force, so the sweep can wait
+for recent profiles to become eligible. Failed sends remain pending.
+
+BUMP_*_INTERVAL_HOURS and BUMP_*_COUNT_PER_RUN are superseded by this schedule;
+changing those old variables has no effect. No environment changes are required.
+Startup schedules the next future slot without an immediate or catch-up bump.
+A database advisory lock serializes scheduler instances, and existing per-profile
+locking and short-retry nonce protection still apply. Auto-bumps suppress mentions
+and push notifications. Historical duplicate messages are not cleaned up by this job.

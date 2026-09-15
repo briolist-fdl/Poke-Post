@@ -52,21 +52,21 @@ const VIVILLON_PATTERNS = new Set([
 
 const REGION_EMOJIS = {
   archipelago: "🏝️",
-  continental: "🌍",
+  continental: "🚂",
   elegant: "🌸",
-  garden: "🌿",
+  garden: "🪴",
   high_plains: "🌾",
-  icy_snow: "🧊",
+  icy_snow: "🏔️",
   jungle: "🌴",
-  marine: "🌊",
+  marine: "⛵",
   meadow: "🌼",
-  modern: "🏙️",
-  monsoon: "🌧️",
-  ocean: "🌊",
+  modern: "🚋",
+  monsoon: "💦",
+  ocean: "🗿",
   polar: "🐻‍❄️",
-  river: "🏞️",
-  sandstorm: "🏜️",
-  savanna: "🦁",
+  river: "🛶",
+  sandstorm: "🐪",
+  savanna: "🌳",
   sun: "☀️",
   tundra: "❄️"
 };
@@ -93,7 +93,7 @@ client.once(Events.ClientReady, async readyClient => {
   await ensureDatabaseConnection();
 
   if (String(process.env.BUMP_ENABLED).toLowerCase() === "true") {
-    startBumpJob();
+    await startBumpJob();
   }
 });
 
@@ -833,68 +833,27 @@ async function touchProfile(discordUserId) {
   );
 }
 
-function startBumpJob() {
-  console.log("Bump job enabled.");
-
-  startBumpSchedule("tundra", {
-    channelId: TUNDRA_CHANNEL_ID,
-    intervalHours: Number(process.env.BUMP_TUNDRA_INTERVAL_HOURS || 24),
-    countPerRun: Number(process.env.BUMP_TUNDRA_COUNT_PER_RUN || 1),
-    cooldownDays: Number(process.env.BUMP_TUNDRA_COOLDOWN_DAYS || 5)
-  });
-
-  startBumpSchedule("international", {
-    channelId: INTERNATIONAL_CHANNEL_ID,
-    intervalHours: Number(process.env.BUMP_INTERNATIONAL_INTERVAL_HOURS || 11),
-    countPerRun: Number(process.env.BUMP_INTERNATIONAL_COUNT_PER_RUN || 3),
-    cooldownDays: Number(process.env.BUMP_INTERNATIONAL_COOLDOWN_DAYS || 3)
-  });
-}
-
-function startBumpSchedule(name, config) {
-  const intervalMs = config.intervalHours * 60 * 60 * 1000;
-
-  console.log(
-    `Bump schedule "${name}" enabled. Running every ${config.intervalHours} hour(s), count ${config.countPerRun}, cooldown ${config.cooldownDays} day(s).`
-  );
-
-  runBumpCycle(config).catch(error => {
-    console.error(`Initial bump cycle failed for "${name}":`, error);
-  });
-
-  setInterval(async () => {
-    try {
-      await runBumpCycle(config);
-    } catch (error) {
-      console.error(`Bump cycle failed for "${name}":`, error);
+async function startBumpJob() {
+  const { createBumpScheduler } = require('./src/bumpScheduler');
+  const scheduler = createBumpScheduler({
+    pool,
+    feeds: [
+      { name: 'international', channelId: INTERNATIONAL_CHANNEL_ID,
+        cooldownDays: Number(process.env.BUMP_INTERNATIONAL_COOLDOWN_DAYS || 3) },
+      { name: 'tundra', channelId: TUNDRA_CHANNEL_ID,
+        cooldownDays: Number(process.env.BUMP_TUNDRA_COOLDOWN_DAYS || 5) }
+    ],
+    bump: async profile => {
+      const guild = client.guilds.cache.get(process.env.DISCORD_GUILD_ID);
+      return guild ? bumpProfile(profile, guild) : false;
     }
-  }, intervalMs);
-}
-
-async function runBumpCycle(config) {
-  const guild = client.guilds.cache.get(process.env.DISCORD_GUILD_ID);
-  if (!guild) return;
-
-  const cutoff = new Date(
-    Date.now() - config.cooldownDays * 24 * 60 * 60 * 1000
-  );
-
-  const result = await pool.query(
-    `
-    SELECT *
-    FROM friendcode_profiles
-    WHERE public_message_id IS NOT NULL
-      AND public_channel_id = $1
-      AND (last_bumped_at IS NULL OR last_bumped_at < $2)
-    ORDER BY RANDOM()
-    LIMIT $3
-    `,
-    [config.channelId, cutoff.toISOString(), config.countPerRun]
-  );
-
-  for (const profile of result.rows) {
-    await bumpProfile(profile, guild);
-  }
+  });
+  await scheduler.initialize();
+  // Initialization schedules a future slot; it never posts on startup.
+  setInterval(() => scheduler.tick().catch(error => {
+    console.error('Bump scheduler failed:', error);
+  }), 60 * 1000);
+  console.log('Bump scheduler enabled: persistent transition queue, one post per run.');
 }
 
 async function bumpProfile(profile, guild) {
@@ -905,11 +864,13 @@ async function bumpProfile(profile, guild) {
     // never recreate a removed post or use references from before a correction.
     const { rows } = await db.query('SELECT * FROM friendcode_profiles WHERE discord_user_id = $1 FOR UPDATE', [profile.discord_user_id]);
     const current = rows[0];
+    let bumped = false;
     if (current?.public_message_id && current.public_message_id === profile.public_message_id &&
         current.public_channel_id === profile.public_channel_id) {
-      await bumpLocked(current, guild, db);
+      bumped = await bumpLocked(current, guild, db) === true;
     }
     await db.query('COMMIT');
+    return bumped;
   } catch (error) {
     await db.query('ROLLBACK').catch(() => {});
     throw error;
@@ -920,7 +881,7 @@ async function bumpProfile(profile, guild) {
 
 async function bumpLocked(profile, guild, db) {
   const channel = await guild.channels.fetch(profile.public_channel_id);
-  if (!channel || !channel.isTextBased()) return;
+  if (!channel || !channel.isTextBased()) return false;
 
   const content = await buildPublicMessage(profile, { bumped: true });
   const components = buildButtons(profile);
@@ -948,6 +909,7 @@ async function bumpLocked(profile, guild, db) {
     `,
     [profile.discord_user_id, newMessage.id]
   );
+  return true;
 }
 
 client.login(process.env.DISCORD_TOKEN);
