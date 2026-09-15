@@ -58,6 +58,17 @@ Poké-Post does not share stored data with advertisers or third parties.
 
 ## Data retention
 
+### Moderator corrections
+
+Authorized administrators can correct a profile's Vivillon region and channel
+placement. The bot records the acting moderator's Discord ID, profile owner's
+Discord ID, server ID, old/new region, channel/message references, timestamp and
+outcome in hosting logs. These moderation records do not include trainer codes.
+Hosting log retention is separate from profile storage; `/post delete` does not
+delete hosting logs. Contact the maintainer for requests concerning these records.
+
+### Profile storage
+
 Poké-Post stores profile data for as long as the user keeps a profile registered with the bot.
 
 Users can delete their saved profile using:

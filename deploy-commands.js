@@ -143,6 +143,16 @@ function prettifyPattern(value) {
     .join(" ");
 }
 
+setupCommand.addSubcommandGroup(group => group
+  .setName('admin')
+  .setDescription('Moderate saved friend-code profiles.')
+  .addSubcommand(sub => sub
+    .setName('region')
+    .setDescription('Correct a user’s Vivillon region and update their post.')
+    .addUserOption(opt => opt.setName('user').setDescription('The profile owner.').setRequired(true))
+    .addStringOption(opt => opt.setName('vivillon_pattern').setDescription('The correct Vivillon region.')
+      .setRequired(true).addChoices(...vivillonChoices.map(value => ({ name: prettifyPattern(value), value }))))));
+
 const commands = [setupCommand.toJSON()];
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);

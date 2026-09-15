@@ -74,6 +74,12 @@ const REGION_EMOJIS = {
 const INTERNATIONAL_CHANNEL_ID = process.env.INTERNATIONAL_CHANNEL_ID;
 const TUNDRA_CHANNEL_ID = process.env.TUNDRA_CHANNEL_ID;
 
+const { createRegionModerator } = require('./src/moderateRegion');
+const handleRegionModeration = createRegionModerator({
+  pool, client, configuredGuildId: process.env.DISCORD_GUILD_ID,
+  patterns: VIVILLON_PATTERNS, getPublicChannelId, buildPublicMessage, buildButtons
+});
+
 client.once(Events.ClientReady, async readyClient => {
   console.log(`Logged in as ${readyClient.user.tag}`);
 
@@ -142,7 +148,11 @@ client.on(Events.InteractionCreate, async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === "post") {
-        await handleFriendcodeCommand(interaction);
+        if (interaction.options.getSubcommandGroup(false) === "admin") {
+          await handleRegionModeration(interaction);
+        } else {
+          await handleFriendcodeCommand(interaction);
+        }
       }
       return;
     }

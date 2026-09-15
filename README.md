@@ -84,6 +84,44 @@ Turns follower republishing on or off.
 
 Changes the saved Vivillon pattern for the user profile.
 
+## Moderator region correction
+
+`/post admin region user:<member> vivillon_pattern:<region>` corrects a saved profile.
+It requires **Manage Messages** at runtime. The
+runtime check uses the member's effective permissions in the command channel,
+including channel overrides. Administrator also grants access. Until
+profiles are server-scoped, it only operates in `DISCORD_GUILD_ID` (the home server).
+The profile owner does not need to be the person running the command.
+
+The `/post` root remains available to regular users. Discord command-level default
+permissions apply to the whole root, so admin subcommands rely on the runtime
+permission check rather than restricting all profile commands. The admin group
+may be visible to users who cannot run it.
+
+The post is edited in place when its destination stays the same. Otherwise a new
+post is saved in the correct configured channel before the old post is removed.
+Missing old posts are recreated. Codes, republishing preference and bump timestamps
+are retained; the correction removes the automatic `bumped` marker. No profile is deleted.
+
+The bot needs View Channel and Read Message History in the source, and View Channel
+and Send Messages in the destination. It only edits/deletes its own stored post.
+No mentions are notified by this command. Posts in followed servers may not be
+updated or removed when an announcement post is corrected.
+
+Moderation events are JSON records with `event=poke_post_moderation` in the hosting
+logs (Railway). They include moderator/user/server IDs, old/new region and message
+references, timestamp and outcome, but no trainer codes. Access to these logs should
+be restricted to staff; retention follows the hosting log settings. No separate
+Discord audit channel is created by this version.
+
+If old-post cleanup fails, the private reply links to the remaining post. If a
+database commit cannot be confirmed, the command asks staff to check before retrying.
+Discord and PostgreSQL do not share a transaction, so these partial failures require
+manual review. Avoid concurrent profile edits while a moderator correction is running.
+
+This feature needs a code deploy **and explicit slash-command registration** before
+use. It needs no schema migration or new environment variables.
+
 ## Requirements
 
 * Node.js
