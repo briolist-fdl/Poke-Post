@@ -1011,7 +1011,7 @@ async function bumpProfile(profile, guild) {
     }
   } catch (_) {}
 
-  const newMessage = await channel.send({ content, components });
+  const newMessage = await channel.send({ content, components, allowedMentions: { parse: [] } });
 
   await pool.query(
     `

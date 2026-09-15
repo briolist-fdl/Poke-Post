@@ -13,7 +13,7 @@ It lets players create and manage a structured friend code profile, then posts t
 * Change Vivillon region
 * Turn follower republishing on or off
 * Post to dedicated Tundra and international friend code channels
-* Optional automatic bumping/reposting system
+* Optional automatic bumping/reposting system. Automatic bumps retain the visible user mention without sending a mention ping. Normal channel notification settings still apply.
 * PostgreSQL-backed profile storage
 * Ephemeral command responses for user actions
 
