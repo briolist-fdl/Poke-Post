@@ -363,7 +363,7 @@ async function handleFriendcodeCommand(interaction) {
     const updatedProfile = await getProfile(interaction.user.id);
     await publishOrUpdateProfile(updatedProfile, interaction.guild);
 
-    return replySuccess(interaction, `Added extra code: ${formatTrainerCode(normalizedCode)}`);
+    return replySuccess(interaction, `Added ${formatTrainerCode(normalizedCode)} as an extra code.`);
   }
 
   if (subcommand === "remove-code") {
@@ -403,7 +403,7 @@ async function handleFriendcodeCommand(interaction) {
     const updatedProfile = await getProfile(interaction.user.id);
     await publishOrUpdateProfile(updatedProfile, interaction.guild);
 
-    return replySuccess(interaction, `Removed extra code: ${formatTrainerCode(removedCode)}`);
+    return replySuccess(interaction, `Removed the extra code ${formatTrainerCode(removedCode)}.`);
   }
 }
 
@@ -511,11 +511,11 @@ async function buildPublicMessage(profile, { bumped = false } = {}) {
 
 function buildProfilePreview(profile) {
   return [
-    `Pattern: ${prettifyPattern(profile.vivillon_pattern)}`,
-    `Pokémon GO: ${profile.pokemon_username}`,
-    profile.campfire_username ? `Campfire: ${profile.campfire_username}` : null,
-    `Friend code: ${profile.trainer_code_formatted}`,
-    `Public channel: <#${profile.public_channel_id}>`
+    `**Vivillon region** ${prettifyPattern(profile.vivillon_pattern)}`,
+    `**Pokémon GO** ${profile.pokemon_username}`,
+    profile.campfire_username ? `**Campfire** ${profile.campfire_username}` : null,
+    `**Friend code** ${profile.trainer_code_formatted}`,
+    `Your public feed is <#${profile.public_channel_id}>.`
   ].filter(Boolean).join("\n");
 }
 

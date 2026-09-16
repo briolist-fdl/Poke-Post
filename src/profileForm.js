@@ -16,8 +16,8 @@ function createProfileForm({ configuredGuildId, patterns, getProfile, normalizeC
     const publishing = new StringSelectMenuBuilder().setCustomId('publish_to_followers')
       .setPlaceholder('Choose whether follower servers may receive your post').setMinValues(1).setMaxValues(1)
       .addOptions([
-        { label: 'Yes — allow republishing', value: 'yes', default: profile?.publish_to_followers === true },
-        { label: 'No — keep it in this server', value: 'no', default: profile?.publish_to_followers === false }
+        { label: 'Yes, allow republishing', value: 'yes', default: profile?.publish_to_followers === true },
+        { label: 'No, keep it in this server', value: 'no', default: profile?.publish_to_followers === false }
       ]);
     return new ModalBuilder().setCustomId(profile ? 'profile_form:edit' : 'profile_form:setup')
       .setTitle(profile ? 'Edit your friend code profile' : 'Create your friend code profile')
@@ -62,7 +62,7 @@ function createProfileForm({ configuredGuildId, patterns, getProfile, normalizeC
     const choices = interaction.fields.getStringSelectValues('publish_to_followers');
     if (!name || name.length > 64 || campfire.length > 64 || !code || regions.length !== 1 ||
         !patterns.has(regions[0]) || choices.length !== 1 || !['yes','no'].includes(choices[0])) {
-      return interaction.editReply({ content: 'Check your name, 12-digit trainer code, region and republishing choice, then reopen the form.' });
+      return interaction.editReply({ content: 'Check your name, trainer code, region and republishing choice, then reopen the form. Your trainer code must contain 12 digits.' });
     }
     const content = await saveAndPublish({ user: interaction.user, guild: interaction.guild, current,
       pokemonUsername: name, trainerCodeRaw: code, campfireUsername: campfire || null,

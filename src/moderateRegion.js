@@ -20,7 +20,7 @@ function createRegionModerator({ pool, client, configuredGuildId, patterns, getP
     const pattern = interaction.options.getString('vivillon_pattern', true);
     if (!patterns.has(pattern)) return privateReply('Invalid Vivillon pattern.');
     const targetId = getPublicChannelId(pattern);
-    if (!targetId) return privateReply('The destination friend-code channel is not configured.');
+    if (!targetId) return privateReply('The destination friend code channel is not configured.');
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const event = { guildId: interaction.guildId, moderatorId: interaction.user.id,
@@ -75,13 +75,13 @@ function createRegionModerator({ pool, client, configuredGuildId, patterns, getP
       await db.query('COMMIT');
       committed = true;
       Object.assign(event, { newMessageId: messageId, outcome: 'saved' });
-      content = `Updated ${user.id} to ${pattern.replace(/_/g, ' ')}. Post: <#${targetId}>.`;
+      content = `Updated ${user.id} to ${pattern.replace(/_/g, ' ')}. You can find the post in <#${targetId}>.`;
       if (newMessage && oldMessage) {
         try { await oldMessage.delete(); }
         catch (error) {
           if (error.code !== 10008) {
             event.outcome = 'saved_cleanup_required';
-            content += ` The old post could not be removed; remove it manually: https://discord.com/channels/${interaction.guildId}/${source.id}/${oldMessage.id}`;
+            content += ` The old post could not be removed. Please [remove it manually](https://discord.com/channels/${interaction.guildId}/${source.id}/${oldMessage.id}).`;
           }
         }
       }
@@ -99,9 +99,9 @@ function createRegionModerator({ pool, client, configuredGuildId, patterns, getP
       audit({ ...event, outcome: committing ? 'commit_confirmation_failed' : 'failed',
         cleanupFailed, candidateMessageId: newMessage?.id || null, errorCode: error.code || null });
       content = committing
-        ? 'The database confirmation failed. Check the profile and posts before retrying; the change may have been saved.'
+        ? 'The database confirmation failed. The change may have been saved. Check the profile and posts before trying again.'
         : 'The correction failed. The database change was not committed.';
-      if (cleanupFailed) content += ' A public post also needs manual review; see the moderation log.';
+      if (cleanupFailed) content += ' A public post also needs manual review. Check the moderation log for details.';
     } finally {
       db?.release();
     }

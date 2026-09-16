@@ -324,3 +324,16 @@ Startup schedules the next future slot without an immediate or catch-up bump.
 A database advisory lock serializes scheduler instances, and existing per-profile
 locking and short-retry nonce protection still apply. Auto-bumps suppress mentions
 and push notifications. Historical duplicate messages are not cleaned up by this job.
+
+## Removing an older profile copy
+
+The optional message field in `/post admin remove` accepts a full Discord message
+link or a message ID. Use a full link when the copy is in another channel or the
+saved profile no longer exists. A bare ID uses the saved profile channel, or the
+command channel when no profile exists.
+
+The bot verifies that the selected message was posted by Poké-Post and that its
+copy button identifies the requested profile owner. The owner does not need to
+be a server member. Removing a selected older copy leaves a different active post
+unchanged. Removing the active post also disables its automatic bumping. This
+option does not scan for other copies or block future posting.

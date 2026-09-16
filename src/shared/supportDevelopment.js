@@ -69,7 +69,7 @@ function buildSupportMessage() {
   const linkText = links.join(' · ');
 
   const variants = [
-    `${bot.name} is built as an open source community tool. Helpful links: ${linkText}`,
+    `${bot.name} is built as an open source community tool. Explore the project or support its development. ${linkText}`,
     `${bot.name} is built as an open source community tool. ${linkText}`,
   ];
 
@@ -86,7 +86,7 @@ function maybeAddSupportMessage(content) {
 
   if (!supportMessage) return content;
 
-  const combined = `${content}\n\n---\n${supportMessage}`;
+  const combined = `${content}\n\n${supportMessage}`;
   return combined.length <= 2000 ? combined : content;
 }
 

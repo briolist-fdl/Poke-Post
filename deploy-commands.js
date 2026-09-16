@@ -58,7 +58,7 @@ const setupCommand = new SlashCommandBuilder()
     .addStringOption(opt =>
       opt
         .setName("trainer_code")
-        .setDescription("A 12-digit Pokemon GO friend code.")
+        .setDescription("A Pokemon GO friend code with 12 digits.")
         .setRequired(true)
     )
 )
@@ -69,7 +69,7 @@ const setupCommand = new SlashCommandBuilder()
     .addIntegerOption(opt =>
       opt
         .setName("code_number")
-        .setDescription("Which additional code to remove (1-3).")
+        .setDescription("Which additional code to remove, from 1 to 3.")
         .setRequired(true)
         .setMinValue(1)
         .setMaxValue(3)
@@ -111,11 +111,12 @@ function prettifyPattern(value) {
 
 setupCommand.addSubcommandGroup(group => group
   .setName('admin')
-  .setDescription('Moderate saved friend-code profiles.')
+  .setDescription('Moderate saved friend code profiles.')
   .addSubcommand(sub => sub
     .setName('remove')
-    .setDescription('Remove a public post and stop auto-bumping; keep the saved profile.')
-    .addStringOption(opt => opt.setName('user').setDescription('The profile owner: @mention or user ID (also works for unknown users).').setRequired(true)))
+    .setDescription('Remove a public post and stop automatic bumping while keeping the saved profile.')
+    .addStringOption(opt => opt.setName('user').setDescription('Enter the profile owner’s @mention or user ID, even if they have left the server.').setRequired(true))
+    .addStringOption(opt => opt.setName('message').setDescription('An optional message link or ID to remove a specific copy of this user’s post.')))
   .addSubcommand(sub => sub
     .setName('region')
     .setDescription('Correct a user’s Vivillon region and update their post.')
