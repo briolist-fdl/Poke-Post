@@ -53,20 +53,20 @@ const VIVILLON_PATTERNS = new Set([
 const REGION_EMOJIS = {
   archipelago: "🏝️",
   continental: "🚂",
-  elegant: "🌸",
+  elegant: "🪭",
   garden: "🪴",
-  high_plains: "🌾",
+  high_plains: "🐎",
   icy_snow: "🏔️",
-  jungle: "🌴",
-  marine: "⛵",
+  jungle: "🦧",
+  marine: "🐚",
   meadow: "🌼",
-  modern: "🚋",
-  monsoon: "💦",
+  modern: "🚕",
+  monsoon: "🦎",
   ocean: "🗿",
   polar: "🐻‍❄️",
-  river: "🛶",
+  river: "🦫",
   sandstorm: "🐪",
-  savanna: "🌳",
+  savanna: "🌾",
   sun: "☀️",
   tundra: "❄️"
 };
@@ -91,6 +91,7 @@ client.once(Events.ClientReady, async readyClient => {
   console.log(`Logged in as ${readyClient.user.tag}`);
 
   await ensureDatabaseConnection();
+  await startThreadRouting().catch(error => console.error('Thread routing initialization failed:', error));
 
   if (String(process.env.BUMP_ENABLED).toLowerCase() === "true") {
     await startBumpJob();
@@ -910,6 +911,26 @@ async function bumpLocked(profile, guild, db) {
     [profile.discord_user_id, newMessage.id]
   );
   return true;
+}
+
+async function startThreadRouting() {
+  // Opt-in home-server adapter until explicit per-guild activations are live.
+  const { resolveThreadConfig } = require('./src/threadRoutingConfig');
+  const threads = resolveThreadConfig(process.env.DISCORD_GUILD_ID, process.env.VIVILLON_THREADS_JSON);
+  if (!threads) return;
+  const { createThreadRouter } = require('./src/threadRouter');
+  const router = createThreadRouter({
+    pool, client, configs: [{ guildId: process.env.DISCORD_GUILD_ID, threads }],
+    loadProfiles: async (db, guildId) => {
+      if (guildId !== process.env.DISCORD_GUILD_ID) throw Error('Legacy profiles belong only to the home server');
+      return (await db.query('SELECT * FROM friendcode_profiles WHERE public_message_id IS NOT NULL AND public_channel_id = ANY($1::text[])',
+        [[INTERNATIONAL_CHANNEL_ID, TUNDRA_CHANNEL_ID].filter(Boolean)])).rows;
+    },
+    render: async profile => ({ content: await buildPublicMessage(profile), components: buildButtons(profile) })
+  });
+  await router.initialize();
+  setInterval(() => router.tick().catch(error => console.error('Thread routing cycle failed:', error)), 60000);
+  console.log('Vivillon thread routing enabled; one profile synchronization per minute.');
 }
 
 client.login(process.env.DISCORD_TOKEN);
